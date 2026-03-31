@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useState } from 'react'
 
 const peaks = [
@@ -11,7 +12,7 @@ const peaks = [
   { name: 'Mount Baker', state: 'Washington', country: 'USA', elevation: 10781, difficulty: 'Moderate', region: 'Pacific Northwest' },
   { name: 'Aconcagua', state: 'Mendoza', country: 'Argentina', elevation: 22838, difficulty: 'Very Hard', region: 'South America' },
   { name: 'Cotopaxi', state: 'Cotopaxi Province', country: 'Ecuador', elevation: 19347, difficulty: 'Hard', region: 'South America' },
-  { name: 'Huascarán', state: 'Ancash', country: 'Peru', elevation: 22205, difficulty: 'Very Hard', region: 'South America' },
+  { name: 'Huascaran', state: 'Ancash', country: 'Peru', elevation: 22205, difficulty: 'Very Hard', region: 'South America' },
   { name: 'Illimani', state: 'La Paz', country: 'Bolivia', elevation: 21122, difficulty: 'Very Hard', region: 'South America' },
 ]
 
@@ -35,12 +36,10 @@ export default function Home() {
   const [search, setSearch] = useState('')
   const [showFilters, setShowFilters] = useState(false)
 
-  // Applied filters — what the results actually use
   const [appliedCountries, setAppliedCountries] = useState<string[]>([])
   const [appliedStates, setAppliedStates] = useState<string[]>([])
   const [appliedDifficulties, setAppliedDifficulties] = useState<string[]>([])
 
-  // Draft filters — what the user is selecting inside the sheet
   const [draftCountries, setDraftCountries] = useState<string[]>([])
   const [draftStates, setDraftStates] = useState<string[]>([])
   const [draftDifficulties, setDraftDifficulties] = useState<string[]>([])
@@ -52,7 +51,6 @@ export default function Home() {
   }
 
   const openFilters = () => {
-    // Copy applied into draft when opening
     setDraftCountries([...appliedCountries])
     setDraftStates([...appliedStates])
     setDraftDifficulties([...appliedDifficulties])
@@ -67,7 +65,6 @@ export default function Home() {
   }
 
   const cancelFilters = () => {
-    // Revert draft back to applied — discard changes
     setDraftCountries([...appliedCountries])
     setDraftStates([...appliedStates])
     setDraftDifficulties([...appliedDifficulties])
@@ -84,7 +81,6 @@ export default function Home() {
     ? draftCountries.flatMap(c => statesByCountry[c] || [])
     : Object.values(statesByCountry).flat()
 
-  // Preview count shown on the apply button
   const previewFiltered = peaks.filter(peak => {
     const matchesCountry = draftCountries.length === 0 || draftCountries.includes(peak.country)
     const matchesState = draftStates.length === 0 || draftStates.includes(peak.state)
@@ -105,7 +101,6 @@ export default function Home() {
       <h1 className="text-2xl font-bold text-white mb-1">Explore Peaks</h1>
       <p className="text-gray-400 text-sm mb-4">United States & South America</p>
 
-      {/* Search bar */}
       <input
         type="text"
         placeholder="Search peaks..."
@@ -114,7 +109,6 @@ export default function Home() {
         className="w-full bg-gray-800 text-white placeholder-gray-500 rounded-xl px-4 py-3 mb-3 outline-none focus:ring-2 focus:ring-emerald-500"
       />
 
-      {/* Filter button */}
       <button
         onClick={openFilters}
         className="flex items-center gap-2 bg-gray-800 text-gray-300 rounded-xl px-4 py-3 mb-4 w-full justify-between"
@@ -131,13 +125,16 @@ export default function Home() {
         <span className="text-gray-500 text-sm">{filtered.length} peaks</span>
       </button>
 
-      {/* Peak cards */}
       <div className="flex flex-col gap-3">
         {filtered.length === 0 ? (
           <p className="text-gray-500 text-center mt-8">No peaks match your filters</p>
         ) : (
           filtered.map(peak => (
-            <div key={peak.name} className="bg-gray-900 rounded-2xl p-4 border border-gray-800 active:scale-95 transition-transform cursor-pointer">
+            <Link
+              key={peak.name}
+              href={`/peaks/${peak.name.toLowerCase().replace(/\s+/g, '-')}`}
+              className="bg-gray-900 rounded-2xl p-4 border border-gray-800 active:scale-95 transition-transform block"
+            >
               <div className="flex justify-between items-start mb-1">
                 <h2 className="text-white font-semibold text-lg">{peak.name}</h2>
                 <span className={`text-xs px-2 py-1 rounded-full font-medium ${difficultyColor[peak.difficulty]}`}>
@@ -146,25 +143,21 @@ export default function Home() {
               </div>
               <p className="text-gray-400 text-sm">{peak.state} · {peak.country}</p>
               <p className="text-emerald-400 text-sm mt-1">{peak.elevation.toLocaleString()} ft</p>
-            </div>
+            </Link>
           ))
         )}
       </div>
 
-      {/* Filter sheet overlay */}
       {showFilters && (
         <div className="fixed inset-0 z-50 flex flex-col justify-end">
           <div className="absolute inset-0 bg-black/60" onClick={cancelFilters} />
           <div className="relative bg-gray-900 rounded-t-3xl p-6 z-10 max-h-[80vh] overflow-y-auto pb-24">
-            
-            {/* Sheet header */}
             <div className="flex justify-between items-center mb-6">
               <button onClick={cancelFilters} className="text-gray-400 text-sm">Cancel</button>
               <h2 className="text-white text-lg font-semibold">Filter Peaks</h2>
               <button onClick={clearFilters} className="text-emerald-400 text-sm">Clear all</button>
             </div>
 
-            {/* Country */}
             <p className="text-gray-400 text-xs uppercase tracking-wider mb-2">Country</p>
             <div className="flex flex-wrap gap-2 mb-5">
               {countries.map(c => (
@@ -182,7 +175,6 @@ export default function Home() {
               ))}
             </div>
 
-            {/* State */}
             <p className="text-gray-400 text-xs uppercase tracking-wider mb-2">State / Province</p>
             <div className="flex flex-wrap gap-2 mb-5">
               {availableStates.map(s => (
@@ -200,7 +192,6 @@ export default function Home() {
               ))}
             </div>
 
-            {/* Difficulty */}
             <p className="text-gray-400 text-xs uppercase tracking-wider mb-2">Difficulty</p>
             <div className="flex flex-wrap gap-2 mb-6">
               {difficulties.map(d => (
@@ -218,14 +209,12 @@ export default function Home() {
               ))}
             </div>
 
-            {/* Apply button */}
             <button
               onClick={applyFilters}
               className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-3 rounded-xl transition-colors"
             >
               Show {previewFiltered.length} peaks
             </button>
-
           </div>
         </div>
       )}
