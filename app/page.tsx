@@ -5,8 +5,8 @@ import { useState } from 'react'
 import { peaks } from './data'
 
 const difficulties = ['Moderate', 'Hard', 'Very Hard']
-const countries = ['USA']
-const states = [...new Set(peaks.map(p => p.state))].sort()
+const countries = [...new Set(peaks.map(p => p.country))].sort()
+const allStates = [...new Set(peaks.map(p => p.state))].sort()
 
 const difficultyColor: Record<string, string> = {
   'Moderate': 'bg-green-900 text-green-300',
@@ -18,52 +18,64 @@ export default function Home() {
   const [search, setSearch] = useState('')
   const [showFilters, setShowFilters] = useState(false)
 
+  const [appliedCountries, setAppliedCountries] = useState<string[]>([])
   const [appliedStates, setAppliedStates] = useState<string[]>([])
   const [appliedDifficulties, setAppliedDifficulties] = useState<string[]>([])
 
+  const [draftCountries, setDraftCountries] = useState<string[]>([])
   const [draftStates, setDraftStates] = useState<string[]>([])
   const [draftDifficulties, setDraftDifficulties] = useState<string[]>([])
 
-  const activeFilterCount = appliedStates.length + appliedDifficulties.length
+  const activeFilterCount = appliedCountries.length + appliedStates.length + appliedDifficulties.length
 
   const toggle = (value: string, list: string[], setList: (v: string[]) => void) => {
     setList(list.includes(value) ? list.filter(i => i !== value) : [...list, value])
   }
 
   const openFilters = () => {
+    setDraftCountries([...appliedCountries])
     setDraftStates([...appliedStates])
     setDraftDifficulties([...appliedDifficulties])
     setShowFilters(true)
   }
 
   const applyFilters = () => {
+    setAppliedCountries([...draftCountries])
     setAppliedStates([...draftStates])
     setAppliedDifficulties([...draftDifficulties])
     setShowFilters(false)
   }
 
   const cancelFilters = () => {
+    setDraftCountries([...appliedCountries])
     setDraftStates([...appliedStates])
     setDraftDifficulties([...appliedDifficulties])
     setShowFilters(false)
   }
 
   const clearFilters = () => {
+    setDraftCountries([])
     setDraftStates([])
     setDraftDifficulties([])
   }
 
+  const availableStates = draftCountries.length > 0
+    ? [...new Set(peaks.filter(p => draftCountries.includes(p.country)).map(p => p.state))].sort()
+    : allStates
+
   const previewFiltered = peaks.filter(peak => {
+    const matchesCountry = draftCountries.length === 0 || draftCountries.includes(peak.country)
     const matchesState = draftStates.length === 0 || draftStates.includes(peak.state)
     const matchesDifficulty = draftDifficulties.length === 0 || draftDifficulties.includes(peak.difficulty)
-    return matchesState && matchesDifficulty
+    return matchesCountry && matchesState && matchesDifficulty
   })
 
   const filtered = peaks.filter(peak => {
     const matchesSearch = peak.name.toLowerCase().includes(search.toLowerCase())
+    const matchesCountry = appliedCountries.length === 0 || appliedCountries.includes(peak.country)
     const matchesState = appliedStates.length === 0 || appliedStates.includes(peak.state)
     const matchesDifficulty = appliedDifficulties.length === 0 || appliedDifficulties.includes(peak.difficulty)
-    return matchesSearch && matchesState && matchesDifficulty
+    return matchesSearch && matchesCountry && matchesState && matchesDifficulty
   })
 
   return (
@@ -111,7 +123,7 @@ export default function Home() {
                   {peak.difficulty}
                 </span>
               </div>
-              <p className="text-gray-400 text-sm">{peak.state} · {peak.region}</p>
+              <p className="text-gray-400 text-sm">{peak.state} · {peak.country}</p>
               <p className="text-emerald-400 text-sm mt-1">{peak.elevation.toLocaleString()} ft</p>
             </Link>
           ))
@@ -128,9 +140,26 @@ export default function Home() {
               <button onClick={clearFilters} className="text-emerald-400 text-sm">Clear all</button>
             </div>
 
-            <p className="text-gray-400 text-xs uppercase tracking-wider mb-2">State</p>
+            <p className="text-gray-400 text-xs uppercase tracking-wider mb-2">Country</p>
             <div className="flex flex-wrap gap-2 mb-5">
-              {states.map(s => (
+              {countries.map(c => (
+                <button
+                  key={c}
+                  onClick={() => toggle(c, draftCountries, setDraftCountries)}
+                  className={`px-3 py-1.5 rounded-full text-sm transition-colors ${
+                    draftCountries.includes(c)
+                      ? 'bg-emerald-700 text-emerald-200'
+                      : 'bg-gray-800 text-gray-300'
+                  }`}
+                >
+                  {c}
+                </button>
+              ))}
+            </div>
+
+            <p className="text-gray-400 text-xs uppercase tracking-wider mb-2">State / Province</p>
+            <div className="flex flex-wrap gap-2 mb-5">
+              {availableStates.map(s => (
                 <button
                   key={s}
                   onClick={() => toggle(s, draftStates, setDraftStates)}
