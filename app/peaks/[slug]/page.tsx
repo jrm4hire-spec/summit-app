@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import WeatherCard from '../../components/WeatherCard'
 import { peaks } from '../../data'
 
 const difficultyColor: Record<string, string> = {
@@ -152,17 +153,17 @@ export default async function PeakPage({ params }: { params: Promise<{ slug: str
   }
 
   const maxPop = Math.max(...peak.popularity)
-  const photoUrl = peak.photo || photoMap[peak.name] || 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=800&q=80'
+  const photoUrl = (peak.photo && peak.photo.length > 0) ? peak.photo : (photoMap[peak.name] || 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=800&q=80')
 
   return (
     <div className="min-h-screen bg-gray-950">
 
       {/* Hero photo */}
-      <div className="relative w-full" style={{ height: '530px' }}>
+      <div className="relative w-full" style={{ aspectRatio: '16/9' }}>
         <img
           src={photoUrl}
           alt={peak.name}
-          className="w-full h-full object-cover object-center"
+          className="w-full h-full object-contain bg-gray-900"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-gray-950 via-gray-950/20 to-transparent" />
 
@@ -182,7 +183,6 @@ export default async function PeakPage({ params }: { params: Promise<{ slug: str
       </div>
 
       <div className="px-4 pt-4">
-
         {/* Stats row */}
         <div className="flex gap-3 mb-4">
           <div className="bg-gray-900 rounded-xl px-4 py-3 flex-1 border border-gray-800">
@@ -200,19 +200,12 @@ export default async function PeakPage({ params }: { params: Promise<{ slug: str
         </div>
 
         {/* Weather */}
-        <div className="bg-gray-900 rounded-2xl p-4 border border-gray-800 mb-4">
-          <p className="text-gray-400 text-xs uppercase tracking-wider mb-3">Current Weather</p>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-white text-3xl font-bold">--°F</p>
-              <p className="text-gray-400 text-sm">Loading forecast...</p>
-            </div>
-            <div className="text-right">
-              <p className="text-gray-400 text-sm">Wind: -- mph</p>
-              <p className="text-gray-500 text-xs mt-1">Coming soon</p>
-            </div>
-          </div>
-        </div>
+        <WeatherCard
+        lat={peak.coords.lat}
+        lon={peak.coords.lon}
+        elevation={peak.elevation}
+        peakName={peak.name}
+        />
 
         {/* Popularity chart */}
         <div className="bg-gray-900 rounded-2xl p-4 border border-gray-800 mb-4">
