@@ -136,19 +136,34 @@ const photoMap: Record<string, string> = {
 
 const fallbackPhoto = 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=800&q=80'
 
+// Store filters in sessionStorage so they persist when navigating back
+function getInitialState<T>(key: string, defaultValue: T): T {
+  if (typeof window === 'undefined') return defaultValue
+  try {
+    const stored = sessionStorage.getItem(key)
+    return stored ? JSON.parse(stored) : defaultValue
+  } catch { return defaultValue }
+}
+
 export default function Home() {
   const [search, setSearch] = useState('')
   const [showFilters, setShowFilters] = useState(false)
+  const [sortBy, setSortBy] = useState<'elevation-desc' | 'elevation-asc' | 'alpha-asc' | 'alpha-desc'>(() => getInitialState('sortBy', 'elevation-desc'))
+  const [usMetric, setUsMetric] = useState(() => getInitialState('usMetric', false))
 
-  const [appliedCountries, setAppliedCountries] = useState<string[]>([])
-  const [appliedStates, setAppliedStates] = useState<string[]>([])
-  const [appliedDifficulties, setAppliedDifficulties] = useState<string[]>([])
+  const [appliedCountries, setAppliedCountries] = useState<string[]>(() => getInitialState('appliedCountries', []))
+  const [appliedStates, setAppliedStates] = useState<string[]>(() => getInitialState('appliedStates', []))
+  const [appliedDifficulties, setAppliedDifficulties] = useState<string[]>(() => getInitialState('appliedDifficulties', []))
 
   const [draftCountries, setDraftCountries] = useState<string[]>([])
   const [draftStates, setDraftStates] = useState<string[]>([])
   const [draftDifficulties, setDraftDifficulties] = useState<string[]>([])
 
   const activeFilterCount = appliedCountries.length + appliedStates.length + appliedDifficulties.length
+
+  const saveToSession = (key: string, value: unknown) => {
+    try { sessionStorage.setItem(key, JSON.stringify(value)) } catch {}
+  }
 
   const toggle = (value: string, list: string[], setList: (v: string[]) => void) => {
     setList(list.includes(value) ? list.filter(i => i !== value) : [...list, value])
@@ -165,6 +180,9 @@ export default function Home() {
     setAppliedCountries([...draftCountries])
     setAppliedStates([...draftStates])
     setAppliedDifficulties([...draftDifficulties])
+    saveToSession('appliedCountries', draftCountries)
+    saveToSession('appliedStates', draftStates)
+    saveToSession('appliedDifficulties', draftDifficulties)
     setShowFilters(false)
   }
 
@@ -181,6 +199,17 @@ export default function Home() {
     setDraftDifficulties([])
   }
 
+  const handleSortChange = (newSort: typeof sortBy) => {
+    setSortBy(newSort)
+    saveToSession('sortBy', newSort)
+  }
+
+  const handleMetricToggle = () => {
+    const newVal = !usMetric
+    setUsMetric(newVal)
+    saveToSession('usMetric', newVal)
+  }
+
   const availableStates = draftCountries.length > 0
     ? [...new Set(peaks.filter(p => draftCountries.includes(p.country)).map(p => p.state))].sort()
     : allStates
@@ -192,13 +221,32 @@ export default function Home() {
     return matchesCountry && matchesState && matchesDifficulty
   })
 
-  const filtered = peaks.filter(peak => {
-    const matchesSearch = peak.name.toLowerCase().includes(search.toLowerCase())
-    const matchesCountry = appliedCountries.length === 0 || appliedCountries.includes(peak.country)
-    const matchesState = appliedStates.length === 0 || appliedStates.includes(peak.state)
-    const matchesDifficulty = appliedDifficulties.length === 0 || appliedDifficulties.includes(peak.difficulty)
-    return matchesSearch && matchesCountry && matchesState && matchesDifficulty
-  })
+  const formatElevation = (ft: number) => {
+    if (usMetric) return `${Math.round(ft * 0.3048).toLocaleString()} m`
+    return `${ft.toLocaleString()} ft`
+  }
+
+  const sortOptions: { value: typeof sortBy; label: string }[] = [
+    { value: 'elevation-desc', label: 'Height: High → Low' },
+    { value: 'elevation-asc', label: 'Height: Low → High' },
+    { value: 'alpha-asc', label: 'Name: A → Z' },
+    { value: 'alpha-desc', label: 'Name: Z → A' },
+  ]
+
+  const filtered = peaks
+    .filter(peak => {
+      const matchesSearch = peak.name.toLowerCase().includes(search.toLowerCase())
+      const matchesCountry = appliedCountries.length === 0 || appliedCountries.includes(peak.country)
+      const matchesState = appliedStates.length === 0 || appliedStates.includes(peak.state)
+      const matchesDifficulty = appliedDifficulties.length === 0 || appliedDifficulties.includes(peak.difficulty)
+      return matchesSearch && matchesCountry && matchesState && matchesDifficulty
+    })
+    .sort((a, b) => {
+      if (sortBy === 'elevation-desc') return b.elevation - a.elevation
+      if (sortBy === 'elevation-asc') return a.elevation - b.elevation
+      if (sortBy === 'alpha-asc') return a.name.localeCompare(b.name)
+      return b.name.localeCompare(a.name)
+    })
 
   return (
     <div className="min-h-screen bg-gray-950 px-4 pt-6">
@@ -213,26 +261,63 @@ export default function Home() {
         className="w-full bg-gray-800 text-white placeholder-gray-500 rounded-xl px-4 py-3 mb-3 outline-none focus:ring-2 focus:ring-emerald-500"
       />
 
-      <button
-        onClick={openFilters}
-        className="flex items-center gap-2 bg-gray-800 text-gray-300 rounded-xl px-4 py-3 mb-4 w-full justify-between"
-      >
-        <span className="flex items-center gap-2">
-          <span>🎚</span>
-          <span>Filters</span>
-          {activeFilterCount > 0 && (
-            <span className="bg-emerald-700 text-emerald-200 text-xs px-2 py-0.5 rounded-full">
-              {activeFilterCount} active
-            </span>
-          )}
-        </span>
-        <span className="text-gray-500 text-sm">{filtered.length} peaks</span>
-      </button>
+      {/* Controls row */}
+      <div className="flex gap-2 mb-3">
+        {/* Filter button */}
+        <button
+          onClick={openFilters}
+          className="flex items-center gap-2 bg-gray-800 text-gray-300 rounded-xl px-3 py-2.5 flex-1 justify-between"
+        >
+          <span className="flex items-center gap-2">
+            <span>🎚</span>
+            <span className="text-sm">Filters</span>
+            {activeFilterCount > 0 && (
+              <span className="bg-emerald-700 text-emerald-200 text-xs px-2 py-0.5 rounded-full">
+                {activeFilterCount}
+              </span>
+            )}
+          </span>
+          <span className="text-gray-500 text-xs">{filtered.length} peaks</span>
+        </button>
 
-      {/* Peak cards with photos */}
-      <div className="flex flex-col gap-3">
+        {/* Sort dropdown */}
+        <select
+          value={sortBy}
+          onChange={e => handleSortChange(e.target.value as typeof sortBy)}
+          className="bg-gray-800 text-gray-300 rounded-xl px-3 py-2.5 text-sm outline-none"
+        >
+          {sortOptions.map(opt => (
+            <option key={opt.value} value={opt.value}>{opt.label}</option>
+          ))}
+        </select>
+      </div>
+
+      {/* Feet / Meters toggle */}
+      <div className="flex items-center justify-end mb-4">
+        <div className="flex items-center bg-gray-800 rounded-xl p-1 gap-1">
+          <button
+            onClick={() => { setUsMetric(false); saveToSession('usMetric', false) }}
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+              !usMetric ? 'bg-emerald-600 text-white' : 'text-gray-400'
+            }`}
+          >
+            Feet
+          </button>
+          <button
+            onClick={() => { setUsMetric(true); saveToSession('usMetric', true) }}
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+              usMetric ? 'bg-emerald-600 text-white' : 'text-gray-400'
+            }`}
+          >
+            Meters
+          </button>
+        </div>
+      </div>
+
+      {/* Peak cards */}
+      <div className="grid grid-cols-2 gap-3">
         {filtered.length === 0 ? (
-          <p className="text-gray-500 text-center mt-8">No peaks match your filters</p>
+          <p className="text-gray-500 text-center mt-8 col-span-2">No peaks match your filters</p>
         ) : (
           filtered.map(peak => {
             const photo = (peak.photo && peak.photo.length > 0) ? peak.photo : (photoMap[peak.name] || fallbackPhoto)
@@ -248,15 +333,14 @@ export default function Home() {
                   alt={peak.name}
                   className="w-full h-full object-cover object-center"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-                <div className="absolute bottom-0 left-0 right-0 p-4">
-                  <div className="flex justify-between items-end">
-                    <div>
-                      <h2 className="text-white font-semibold text-lg leading-tight">{peak.name}</h2>
-                      <p className="text-gray-300 text-xs mt-0.5">{peak.state} · {peak.country}</p>
-                      <p className="text-emerald-400 text-xs mt-0.5">{peak.elevation.toLocaleString()} ft</p>
-                    </div>
-                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${difficultyColor[peak.difficulty]}`}>
+                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
+                <div className="absolute bottom-0 left-0 right-0 p-3">
+                  <h2 className="text-white font-semibold text-sm leading-tight">{peak.name}</h2>
+                  <p className="text-gray-300 text-xs mt-0.5">{peak.state}</p>
+                  <p className="text-gray-400 text-xs">{peak.region}</p>
+                  <div className="flex items-center justify-between mt-1">
+                    <p className="text-emerald-400 text-xs">{formatElevation(peak.elevation)}</p>
+                    <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${difficultyColor[peak.difficulty]}`}>
                       {peak.difficulty}
                     </span>
                   </div>
