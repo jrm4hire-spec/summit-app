@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useState } from 'react'
 import { peaks } from './data'
+import WorldMap from './components/WorldMap'
 
 const difficulties = ['Moderate', 'Hard', 'Very Hard']
 const countries = [...new Set(peaks.map(p => p.country))].sort()
@@ -136,7 +137,6 @@ const photoMap: Record<string, string> = {
 
 const fallbackPhoto = 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=800&q=80'
 
-// Store filters in sessionStorage so they persist when navigating back
 function getInitialState<T>(key: string, defaultValue: T): T {
   if (typeof window === 'undefined') return defaultValue
   try {
@@ -148,6 +148,7 @@ function getInitialState<T>(key: string, defaultValue: T): T {
 export default function Home() {
   const [search, setSearch] = useState('')
   const [showFilters, setShowFilters] = useState(false)
+  const [showMap, setShowMap] = useState(() => getInitialState('showMap', false))
   const [sortBy, setSortBy] = useState<'elevation-desc' | 'elevation-asc' | 'alpha-asc' | 'alpha-desc'>(() => getInitialState('sortBy', 'elevation-desc'))
   const [usMetric, setUsMetric] = useState(() => getInitialState('usMetric', false))
 
@@ -204,12 +205,6 @@ export default function Home() {
     saveToSession('sortBy', newSort)
   }
 
-  const handleMetricToggle = () => {
-    const newVal = !usMetric
-    setUsMetric(newVal)
-    saveToSession('usMetric', newVal)
-  }
-
   const availableStates = draftCountries.length > 0
     ? [...new Set(peaks.filter(p => draftCountries.includes(p.country)).map(p => p.state))].sort()
     : allStates
@@ -251,8 +246,9 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gray-950 px-4 pt-6">
       <h1 className="text-2xl font-bold text-white mb-1">Explore Peaks</h1>
-      <p className="text-gray-400 text-sm mb-4">United States & South America</p>
+      <p className="text-emerald-400 text-sm mb-4">Let's find your next climb!</p>
 
+      {/* Search */}
       <input
         type="text"
         placeholder="Search peaks..."
@@ -263,7 +259,6 @@ export default function Home() {
 
       {/* Controls row */}
       <div className="flex gap-2 mb-3">
-        {/* Filter button */}
         <button
           onClick={openFilters}
           className="flex items-center gap-2 bg-gray-800 text-gray-300 rounded-xl px-3 py-2.5 flex-1 justify-between"
@@ -280,7 +275,6 @@ export default function Home() {
           <span className="text-gray-500 text-xs">{filtered.length} peaks</span>
         </button>
 
-        {/* Sort dropdown */}
         <select
           value={sortBy}
           onChange={e => handleSortChange(e.target.value as typeof sortBy)}
@@ -292,8 +286,8 @@ export default function Home() {
         </select>
       </div>
 
-      {/* Feet / Meters toggle */}
-      <div className="flex items-center justify-end mb-4">
+      {/* Feet/Meters + Map toggle row */}
+      <div className="flex items-center justify-between mb-4">
         <div className="flex items-center bg-gray-800 rounded-xl p-1 gap-1">
           <button
             onClick={() => { setUsMetric(false); saveToSession('usMetric', false) }}
@@ -312,7 +306,39 @@ export default function Home() {
             Meters
           </button>
         </div>
+
+        <button
+          onClick={() => { setShowMap(!showMap); saveToSession('showMap', !showMap) }}
+          className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-sm transition-colors ${
+            showMap ? 'bg-emerald-700 text-emerald-200' : 'bg-gray-800 text-gray-400'
+          }`}
+        >
+          <span>🗺</span>
+          <span>{showMap ? 'Hide map' : 'Show map'}</span>
+        </button>
       </div>
+
+      {/* World map */}
+      {showMap && (
+        <WorldMap
+          selectedCountries={appliedCountries}
+          selectedStates={appliedStates}
+          onCountryClick={(country) => {
+            const newCountries = appliedCountries.includes(country)
+              ? appliedCountries.filter(c => c !== country)
+              : [...appliedCountries, country]
+            setAppliedCountries(newCountries)
+            saveToSession('appliedCountries', newCountries)
+          }}
+          onStateClick={(state) => {
+            const newStates = appliedStates.includes(state)
+              ? appliedStates.filter(s => s !== state)
+              : [...appliedStates, state]
+            setAppliedStates(newStates)
+            saveToSession('appliedStates', newStates)
+          }}
+        />
+      )}
 
       {/* Peak cards */}
       <div className="grid grid-cols-2 gap-3">
@@ -326,7 +352,7 @@ export default function Home() {
                 key={peak.name}
                 href={`/peaks/${peak.name.toLowerCase().replace(/\s+/g, '-')}`}
                 className="relative rounded-2xl overflow-hidden block"
-                style={{ height: '160px' }}
+                style={{ aspectRatio: '4/3' }}
               >
                 <img
                   src={photo}
@@ -351,6 +377,7 @@ export default function Home() {
         )}
       </div>
 
+      {/* Filter sheet */}
       {showFilters && (
         <div className="fixed inset-0 z-50 flex flex-col justify-end">
           <div className="absolute inset-0 bg-black/60" onClick={cancelFilters} />
