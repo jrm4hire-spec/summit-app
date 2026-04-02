@@ -6,8 +6,8 @@ import BottomNav from './components/BottomNav'
 const geist = Geist({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'Summit App',
-  description: 'The go-to platform for mountaineering',
+  title: 'Mountaindex',
+  description: 'The go-to platform for mountaineering — explore peaks, check conditions, and plan your next climb.',
 }
 
 export default function RootLayout({
